@@ -1,0 +1,1 @@
+"""Step 4 golden-set preparation and evaluation utilities."""
