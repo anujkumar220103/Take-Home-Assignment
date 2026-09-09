@@ -3,7 +3,8 @@
 This project implements Step 1 and a deliberately limited Step 2 baseline for the
 AmazonHelp customer-support assignment. Step 1 validates and prepares the data.
 Step 2 discovers a transparent first-pass taxonomy and trains an interpretable text
-classifier. It does not implement Step 3 retrieval or reply generation.
+classifier. Step 3 adds observable retrieval and grounded reply generation, but it
+does not include Step 4 evaluation.
 
 ## Input
 
@@ -16,24 +17,30 @@ data/raw/twcs.csv
 The pipeline expects the standard TWCS columns:
 
 - `tweet_id`
-- `author_id`
-- `inbound`
-- `created_at`
-- `text`
-- `response_tweet_id`
+Step 3 builds historical cases from observed customer-parent and AmazonHelp-response
+pairs in the full raw TWCS corpus. A TF-IDF index ranks customer messages using
+text similarity plus intent compatibility, response availability, and conversation
+quality. The Step 2 classifier supplies an intent label and confidence for
+observability. A decision object contains the input, intent, confidence, ranked
+evidence, component scores, action, evidence strength, and reason.
 - `in_response_to_tweet_id`
 
 The validator accepts harmless extra columns, but it does not silently rename or
 invent missing required fields.
 
 ## Run the complete Step 1 pipeline
+The agent retrieves the top three historical cases. Replies are grounded only in
+the retrieved AmazonHelp response evidence. The deterministic fallback uses an
+intent-specific template and does not copy responses verbatim or invent order
+details, policies, refunds, or guarantees. When
 
 From the project root:
 
-```powershell
-python -m src.data.run_step1
-```
-
+The agent handles only when ranked and lexical retrieval evidence are at least
+`0.08`, intent confidence is at least `0.45`, and the request does not require
+private account/order access. Otherwise it escalates and records the exact reason.
+These thresholds are provisional because the available Step 2 artifact is not a
+reply-quality evaluation set; Step 4 must tune and evaluate them.
 Optional arguments:
 
 ```powershell
@@ -42,7 +49,7 @@ python -m src.data.run_step1 --input data/raw/twcs.csv --sample-size 10000 --see
 
 The command writes JSON reports under `reports/`, processed rows under
 `data/processed/`, and the reproducible development sample under `data/samples/`.
-
+The demo indexes the full raw corpus and writes `reports/step3_index.json`; the detailed Step 3 design,
 ## Scope boundary
 
 Step 1 intentionally does not implement LLM calls, embeddings, vector databases,
@@ -108,3 +115,43 @@ Known limitations include silver rather than human labels, severe class imbalanc
 multilingual and ambiguous messages, sparse minority intents, and a text-only
 classifier. A separately annotated evaluation set is required before claiming
 production-level accuracy.
+
+## Step 3: Retrieval-Grounded Support Agent
+
+### Architecture
+
+Step 3 builds historical cases from observed customer-parent and AmazonHelp-response
+pairs. A TF-IDF index ranks customer messages by cosine similarity. The Step 2
+classifier supplies an intent label and confidence for observability. A decision
+object contains the intent, confidence, ranked evidence, top retrieval score, action,
+and reason.
+
+### Retrieval and grounding
+
+The agent retrieves the top three historical cases. Replies are grounded only in
+the retrieved AmazonHelp response text. The mock fallback quotes an observed
+response and never invents order details, policies, refunds, or guarantees. When
+`OPENAI_API_KEY` is configured, an OpenAI-compatible chat-completions endpoint may
+rewrite the grounded evidence into a reply; the prompt explicitly forbids unsupported
+claims, and network/API errors fall back to mock mode.
+
+### Handle and escalate policy
+
+The agent handles only when the top retrieval score is at least `0.08` and intent
+confidence is at least `0.45`. Otherwise it escalates and records the exact reason,
+such as weak retrieval or low intent confidence. There is no silent escalation and
+every decision has a reason.
+
+Run the Step 3 demo:
+
+```powershell
+python -m src.agent.run_demo "Where is my package? It is late."
+```
+
+Use `--use-llm` only when `OPENAI_API_KEY` is configured. The default is deterministic
+mock mode. The demo writes `reports/step3_index.json`; the detailed Step 3 design,
+examples, difficult cases, retrieval failures, and Step 4 evaluation plan are in
+`reports/step3_agent_report.md`.
+
+Step 3 deliberately does not create golden examples, automated reply-quality metrics,
+LLM judges, human agreement analysis, baselines, or headline performance claims.
