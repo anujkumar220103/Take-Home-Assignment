@@ -39,7 +39,12 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as error:
         print(f"Step 3 failed: {error}")
         return 1
-    print(json.dumps({**result, "retrieved_cases": result["retrieved_cases"]}, indent=2, ensure_ascii=False))
+    output = json.dumps(
+        {**result, "retrieved_cases": result["retrieved_cases"]},
+        indent=2,
+        ensure_ascii=True,
+    )
+    print(output)
     return 0
 
 

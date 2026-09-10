@@ -105,9 +105,14 @@ def build_retrieval_index(
     return {"cases": cases, "vectorizer": vectorizer, "matrix": matrix}
 
 
-def classify_query(query: str, labeled_customer_rows: list[dict[str, str]]) -> dict[str, Any]:
-    labeled_rows = discover_intents(labeled_customer_rows)
-    classifier: Pipeline = train_classifier(labeled_rows)
+def classify_query(
+    query: str,
+    labeled_customer_rows: list[dict[str, str]],
+    classifier: Pipeline | None = None,
+) -> dict[str, Any]:
+    if classifier is None:
+        labeled_rows = discover_intents(labeled_customer_rows)
+        classifier = train_classifier(labeled_rows)
     probabilities = classifier.predict_proba([query])[0]
     predicted_index = int(probabilities.argmax())
     predicted_intent = classifier.classes_[predicted_index]
@@ -277,8 +282,9 @@ def answer_query(
     use_llm: bool = False,
     before_created_at: str | None = None,
     excluded_conversation_group: str | None = None,
+    classifier: Pipeline | None = None,
 ) -> dict[str, Any]:
-    classification = classify_query(query, labeled_customer_rows)
+    classification = classify_query(query, labeled_customer_rows, classifier)
     retrieved_cases = retrieve_cases(
         query,
         index,

@@ -7,3 +7,4 @@ data/processed/*.csv
 data/samples/*.csv
 data/raw/*.csv
 data/golden/*.csv
+data/golden/*.backup.csv
